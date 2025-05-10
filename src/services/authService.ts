@@ -1,7 +1,5 @@
-// File: backend/src/services/authService.ts
-import bcrypt from 'bcryptjs';
-import { connectToMongo } from '../config/db';
 import jwt from 'jsonwebtoken';
+import UserModel, { IUser } from '../models/User';
 
 export interface SignupInput {
   username: string;
@@ -10,22 +8,16 @@ export interface SignupInput {
 }
 
 export async function signupService({ username, email, password }: SignupInput): Promise<{ message: string; token: string }> {
-  const db = await connectToMongo();
-  const users = db.collection('users');
-
   // Check if user already exists
-  const existingUser = await users.findOne({ email });
+  const existingUser = await UserModel.findByEmail(email);
   if (existingUser) {
     throw new Error('Email already in use');
   }
 
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
+  // Create new user (UserModel handles password hashing)
+  await UserModel.create({ username, email, password });
 
-  // Insert new user
-  await users.insertOne({ username, email, password: hashedPassword });
-
-  // Create JWT token (optional, but recommended for auth)
+  // Create JWT token
   const token = jwt.sign({ email, username }, process.env.JWT_SECRET || 'yoursecret', { expiresIn: '1h' });
 
   return { message: 'User created successfully', token };
